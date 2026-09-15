@@ -2547,10 +2547,10 @@ function getWeekLabel(date) {
 
 /* Damien: LAUNCH_WEEK_MONDAY_UTC marks the first week the crossword is actually live for
    visitors -- it's what the "Past crosswords" archive counts back from, so nobody sees
-   archive entries for weeks before the tool existed. Launch is 1 Nov 2026 (a Sunday), which
-   falls inside the Mon 26 Oct - Sun 1 Nov week, so that Monday is set below. If the launch
-   date changes, update this to the Monday of whichever week launch now falls in. */
-const LAUNCH_WEEK_MONDAY_UTC = Date.UTC(2026, 9, 26); // Monday 26 October 2026
+   archive entries for weeks before the tool existed. Launch week starts Monday 2 November
+   2026. If the launch date changes, update this to the Monday of whichever week launch
+   now falls in. */
+const LAUNCH_WEEK_MONDAY_UTC = Date.UTC(2026, 10, 2); // Monday 2 November 2026
 const LAUNCH_WEEK_INDEX = getWeekIndex(new Date(LAUNCH_WEEK_MONDAY_UTC));
 
 let weekIndex = getWeekIndex();

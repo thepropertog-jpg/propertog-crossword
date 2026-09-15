@@ -34,6 +34,20 @@ body { font-family: 'Plus Jakarta Sans', Arial, sans-serif; background: #F6F4F0;
 .pt-meta-badge { background: #FBF5E9; border: 1px solid #EAB766; color: #111111; font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 10px; border-radius: 6px; }
 .pt-best { font-size: 13px; color: #555555; text-align: center; margin-top: -4px; margin-bottom: 18px; }
 
+/* archive */
+.pt-archive-section { margin-top: 8px; }
+.pt-archive-heading { font-family: 'Plus Jakarta Sans', Arial, sans-serif; font-weight: 800; font-size: 18px; color: #111111; margin-bottom: 6px; }
+.pt-archive-intro { font-size: 13px; color: #555555; line-height: 1.6; margin-bottom: 14px; }
+.pt-archive-list { background: #FFFFFF; border: 1px solid #E2DED8; border-radius: 12px; overflow: hidden; }
+.pt-archive-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; cursor: pointer; border-bottom: 1px solid #E2DED8; }
+.pt-archive-row:last-child { border-bottom: none; }
+.pt-archive-row:hover { background: #FBF5E9; }
+.pt-archive-week { font-size: 14px; font-weight: 600; color: #111111; }
+.pt-archive-best { font-size: 12px; color: #555555; margin-top: 2px; }
+.pt-archive-play { font-size: 13px; font-weight: 700; color: #EAB766; flex-shrink: 0; }
+.pt-archive-empty { font-size: 13px; color: #555555; text-align: center; padding: 20px; background: #FFFFFF; border: 1px dashed #CCCCCC; border-radius: 12px; }
+.pt-archive-tag { font-weight: 600; color: #EAB766; }
+
 /* game top bar */
 .pt-gamebar { display: flex; align-items: center; justify-content: space-between; background: #EBEBEB; border-radius: 16px; padding: 16px 20px; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
 .pt-timer { font-family: 'Plus Jakarta Sans', Arial, sans-serif; font-weight: 800; font-size: 22px; color: #111111; letter-spacing: 0.02em; font-variant-numeric: tabular-nums; }
@@ -140,11 +154,19 @@ body { font-family: 'Plus Jakarta Sans', Arial, sans-serif; background: #F6F4F0;
     <button class="pt-secondary" onclick="showLeaderboard()">See this week's leaderboard</button>
   </div>
 
+  <!-- ARCHIVE (past weeks, no leaderboard) -->
+  <div id="archive-section" class="pt-archive-section">
+    <h2 class="pt-archive-heading">Past crosswords</h2>
+    <p class="pt-archive-intro">Missed a week? Have a go at an old one below. Just for fun this time &mdash; no leaderboard, no pressure.</p>
+    <div id="archive-list" class="pt-archive-list"></div>
+    <p id="archive-empty" class="pt-archive-empty hidden">Nothing in the archive yet &mdash; check back after this week's crossword has been and gone.</p>
+  </div>
+
   <!-- GAME SCREEN -->
   <div id="screen-game" class="hidden">
     <div class="pt-gamebar">
       <div>
-        <div class="pt-timer-label">Time</div>
+        <div class="pt-timer-label">Time<span id="archive-tag" class="pt-archive-tag hidden"> &middot; Archive</span></div>
         <div class="pt-timer" id="timer-display">00:00</div>
       </div>
       <div class="pt-gamebar-actions">
@@ -188,8 +210,10 @@ body { font-family: 'Plus Jakarta Sans', Arial, sans-serif; background: #F6F4F0;
     <div class="pt-badge">Solved</div>
     <h2 class="pt-result-title" id="complete-time"></h2>
     <p class="pt-result-desc" id="complete-message"></p>
-    <input type="text" class="pt-name-input" id="name-input" placeholder="Your name for the leaderboard" maxlength="24">
-    <button class="pt-next" onclick="submitScore()">Join this week's leaderboard</button>
+    <div id="leaderboard-join-block">
+      <input type="text" class="pt-name-input" id="name-input" placeholder="Your name for the leaderboard" maxlength="24">
+      <button class="pt-next" onclick="submitScore()">Join this week's leaderboard</button>
+    </div>
     <div class="pt-share-row">
       <button class="pt-secondary" onclick="shareToFacebook()">Share to Facebook</button>
       <button class="pt-secondary" onclick="copyLink()">Copy link</button>
@@ -2521,13 +2545,21 @@ function getWeekLabel(date) {
   return "Week of " + monday.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
-const weekIndex = getWeekIndex();
-const weekKey = "week-" + weekIndex;
-const puzzleIndex = ((weekIndex % PUZZLES.length) + PUZZLES.length) % PUZZLES.length;
-const PUZZLE = PUZZLES[puzzleIndex];
-const GRID = PUZZLE.grid;
-const H = GRID.length;
-const W = GRID[0].length;
+/* Damien: LAUNCH_WEEK_MONDAY_UTC marks the first week the crossword is actually live for
+   visitors -- it's what the "Past crosswords" archive counts back from, so nobody sees
+   archive entries for weeks before the tool existed. If launch slips to a later Monday,
+   update this date to match. */
+const LAUNCH_WEEK_MONDAY_UTC = Date.UTC(2026, 8, 14); // Monday 14 September 2026
+const LAUNCH_WEEK_INDEX = getWeekIndex(new Date(LAUNCH_WEEK_MONDAY_UTC));
+
+let weekIndex = getWeekIndex();
+let weekKey = "week-" + weekIndex;
+let puzzleIndex = ((weekIndex % PUZZLES.length) + PUZZLES.length) % PUZZLES.length;
+let PUZZLE = PUZZLES[puzzleIndex];
+let GRID = PUZZLE.grid;
+let H = GRID.length;
+let W = GRID[0].length;
+let archiveMode = false;
 
 /* ================= BUILD WORD LIST FROM GRID ================= */
 function cellAt(r, c) {
@@ -2535,39 +2567,60 @@ function cellAt(r, c) {
   return GRID[r][c];
 }
 
-const words = []; // { key:"13A", num, dir, cells:[{r,c}] }
-for (let r = 0; r < H; r++) {
-  for (let c = 0; c < W; c++) {
-    const cell = cellAt(r, c);
-    if (!cell) continue;
-    const startsAcross = !cellAt(r, c - 1) && !!cellAt(r, c + 1);
-    const startsDown = !cellAt(r - 1, c) && !!cellAt(r + 1, c);
-    if (startsAcross) {
-      const cells = [];
-      let cc = c;
-      while (cellAt(r, cc)) { cells.push({ r: r, c: cc }); cc++; }
-      words.push({ key: cell.n + "A", num: cell.n, dir: "A", cells: cells });
-    }
-    if (startsDown) {
-      const cells = [];
-      let rr = r;
-      while (cellAt(rr, c)) { cells.push({ r: rr, c: c }); rr++; }
-      words.push({ key: cell.n + "D", num: cell.n, dir: "D", cells: cells });
+let words = []; // { key:"13A", num, dir, cells:[{r,c}] }
+let wordByKey = {};
+let cellWords = {}; // which word(s) cover a given cell, keyed by "r,c" -> {A:key, D:key}
+
+function deriveWords() {
+  words = [];
+  for (let r = 0; r < H; r++) {
+    for (let c = 0; c < W; c++) {
+      const cell = cellAt(r, c);
+      if (!cell) continue;
+      const startsAcross = !cellAt(r, c - 1) && !!cellAt(r, c + 1);
+      const startsDown = !cellAt(r - 1, c) && !!cellAt(r + 1, c);
+      if (startsAcross) {
+        const cells = [];
+        let cc = c;
+        while (cellAt(r, cc)) { cells.push({ r: r, c: cc }); cc++; }
+        words.push({ key: cell.n + "A", num: cell.n, dir: "A", cells: cells });
+      }
+      if (startsDown) {
+        const cells = [];
+        let rr = r;
+        while (cellAt(rr, c)) { cells.push({ r: rr, c: c }); rr++; }
+        words.push({ key: cell.n + "D", num: cell.n, dir: "D", cells: cells });
+      }
     }
   }
-}
-const wordByKey = {};
-words.forEach(function (w) { wordByKey[w.key] = w; });
-
-/* which word(s) cover a given cell, keyed by "r,c" -> {A:key, D:key} */
-const cellWords = {};
-words.forEach(function (w) {
-  w.cells.forEach(function (rc) {
-    const k = rc.r + "," + rc.c;
-    if (!cellWords[k]) cellWords[k] = {};
-    cellWords[k][w.dir] = w.key;
+  wordByKey = {};
+  words.forEach(function (w) { wordByKey[w.key] = w; });
+  cellWords = {};
+  words.forEach(function (w) {
+    w.cells.forEach(function (rc) {
+      const k = rc.r + "," + rc.c;
+      if (!cellWords[k]) cellWords[k] = {};
+      cellWords[k][w.dir] = w.key;
+    });
   });
-});
+}
+deriveWords();
+
+/* Damien: loadPuzzle swaps the whole puzzle in and out -- used both for the normal
+   "this week" load and for playing something from the archive. targetWeekIndex is a
+   real week index (same numbering as weekKey/getWeekIndex); archive puzzles reuse the
+   PUZZLES bank on the same 52-week rotation as the live week. */
+function loadPuzzle(targetWeekIndex, isArchive) {
+  archiveMode = !!isArchive;
+  weekIndex = targetWeekIndex;
+  weekKey = "week-" + weekIndex;
+  puzzleIndex = ((weekIndex % PUZZLES.length) + PUZZLES.length) % PUZZLES.length;
+  PUZZLE = PUZZLES[puzzleIndex];
+  GRID = PUZZLE.grid;
+  H = GRID.length;
+  W = GRID[0].length;
+  deriveWords();
+}
 
 /* ================= STATE ================= */
 let userGrid = []; // userGrid[r][c] = "" or letter
@@ -2902,16 +2955,20 @@ function show(id) {
   ["screen-start", "screen-game", "screen-complete", "screen-leaderboard"].forEach(function (s) {
     document.getElementById(s).classList.toggle("hidden", s !== id);
   });
+  document.getElementById("archive-section").classList.toggle("hidden", id !== "screen-start");
   document.getElementById("main-wrap").classList.toggle("pt-wide", id === "screen-game");
 }
 
-function startPuzzle() {
+function startPuzzle(targetWeekIndex) {
+  const isArchive = typeof targetWeekIndex === "number";
+  loadPuzzle(isArchive ? targetWeekIndex : getWeekIndex(), isArchive);
   resetUserGrid();
   finished = false;
   startTime = null;
   elapsedMs = 0;
   current = { r: words[0].cells[0].r, c: words[0].cells[0].c, dir: words[0].dir };
   document.getElementById("timer-display").textContent = "00:00";
+  document.getElementById("archive-tag").classList.toggle("hidden", !isArchive);
   renderGridSkeleton();
   renderLetters();
   renderClues();
@@ -2944,6 +3001,7 @@ function confirmQuit() {
 }
 
 function goHome() {
+  if (archiveMode) loadPuzzle(getWeekIndex(), false);
   show("screen-start");
   refreshStartScreen();
 }
@@ -2953,10 +3011,11 @@ function showComplete() {
   const best = getBest();
   let msg = "Twenty clues down, five of them cheeky, in " + formatTime(elapsedMs) + ".";
   if (best !== null && elapsedMs <= best) {
-    msg += " That's your new personal best for this week.";
+    msg += archiveMode ? " That's your new personal best for this one." : " That's your new personal best for this week.";
   }
   document.getElementById("complete-message").textContent = msg;
   document.getElementById("name-input").value = "";
+  document.getElementById("leaderboard-join-block").classList.toggle("hidden", archiveMode);
   show("screen-complete");
 }
 
@@ -3007,6 +3066,37 @@ function refreshStartScreen() {
   } else {
     line.classList.add("hidden");
   }
+  renderArchiveList();
+}
+
+/* ================= ARCHIVE (past weeks, played just for fun -- no online leaderboard) ================= */
+function renderArchiveList() {
+  const list = document.getElementById("archive-list");
+  const empty = document.getElementById("archive-empty");
+  list.innerHTML = "";
+  const pastWeeks = [];
+  for (let wi = weekIndex - 1; wi >= LAUNCH_WEEK_INDEX; wi--) {
+    pastWeeks.push(wi);
+  }
+  if (pastWeeks.length === 0) {
+    list.classList.add("hidden");
+    empty.classList.remove("hidden");
+    return;
+  }
+  list.classList.remove("hidden");
+  empty.classList.add("hidden");
+  pastWeeks.forEach(function (wi) {
+    const monday = new Date(REF_MONDAY_UTC + wi * 7 * 24 * 3600 * 1000);
+    const label = monday.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    const bestVal = localStorage.getItem("ptCrosswordBest_week-" + wi);
+    const row = document.createElement("div");
+    row.className = "pt-archive-row";
+    row.innerHTML = '<div><div class="pt-archive-week">Week of ' + label + '</div>' +
+      (bestVal ? '<div class="pt-archive-best">Your best: ' + formatTime(parseInt(bestVal, 10)) + '</div>' : '') +
+      '</div><span class="pt-archive-play">Play &rsaquo;</span>';
+    row.addEventListener("click", function () { startPuzzle(wi); });
+    list.appendChild(row);
+  });
 }
 
 /* ================= LEADERBOARD (JSONBin.io) ================= */

@@ -3106,13 +3106,13 @@ function renderArchiveList() {
    by week, e.g. { "week-1234": [ {name, timeMs, ts}, ... ], "week-1235": [...] }, so
    every week keeps its own board and old weeks are never overwritten. */
 const JSONBIN_BIN_ID = "6aa7dc9dac6210605acb23cd";
-const JSONBIN_API_KEY = "$2a$10$.7R5.ATMycRgrjSlQ/Fyd.y2y7bomzNC7unGs3kI8GkSFnfanvY1e";
+const JSONBIN_API_KEY = "$2a$10$n4fDRu6eGHB5.wsnquog0uZ0zAvWFvxmVuINzMt.DqQ3Sd8HOD6Ni";
 const JSONBIN_BASE = "https://api.jsonbin.io/v3/b/" + JSONBIN_BIN_ID;
 
 async function fetchFullRecord() {
   try {
     const res = await fetch(JSONBIN_BASE + "/latest", {
-      headers: { "X-Master-Key": JSONBIN_API_KEY }
+      headers: { "X-Access-Key": JSONBIN_API_KEY }
     });
     const data = await res.json();
     return (data.record && typeof data.record === "object") ? data.record : {};
@@ -3126,7 +3126,7 @@ async function pushFullRecord(record) {
   try {
     await fetch(JSONBIN_BASE, {
       method: "PUT",
-      headers: { "Content-Type": "application/json", "X-Master-Key": JSONBIN_API_KEY },
+      headers: { "Content-Type": "application/json", "X-Access-Key": JSONBIN_API_KEY },
       body: JSON.stringify(record)
     });
   } catch (e) {

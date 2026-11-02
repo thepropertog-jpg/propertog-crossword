@@ -2537,12 +2537,13 @@ function mondayOfUTC(date) {
 function getWeekIndex(date) {
   date = date || new Date();
   const monday = mondayOfUTC(date);
-  return Math.floor((monday.getTime() - REF_MONDAY_UTC) / (7 * 24 * 3600 * 1000));
+  const raw = Math.floor((monday.getTime() - REF_MONDAY_UTC) / (7 * 24 * 3600 * 1000));
+  return arguments.length === 0 ? Math.max(raw, LAUNCH_WEEK_INDEX) : raw;
 }
 function getWeekLabel(date) {
   date = date || new Date();
   const monday = mondayOfUTC(date);
-  return "Week of " + monday.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  return "Week of " + (arguments.length === 0 && monday.getTime() < LAUNCH_WEEK_MONDAY_UTC ? new Date(LAUNCH_WEEK_MONDAY_UTC) : monday).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 /* Damien: LAUNCH_WEEK_MONDAY_UTC marks the first week the crossword is actually live for
@@ -2550,12 +2551,12 @@ function getWeekLabel(date) {
    archive entries for weeks before the tool existed. Launch week starts Monday 2 November
    2026. If the launch date changes, update this to the Monday of whichever week launch
    now falls in. */
-const LAUNCH_WEEK_MONDAY_UTC = Date.UTC(2026, 10, 2); // Monday 2 November 2026
+const LAUNCH_WEEK_MONDAY_UTC = Date.UTC(2026, 10, 16); // Monday 16 November 2026
 const LAUNCH_WEEK_INDEX = getWeekIndex(new Date(LAUNCH_WEEK_MONDAY_UTC));
 
 let weekIndex = getWeekIndex();
 let weekKey = "week-" + weekIndex;
-let puzzleIndex = ((weekIndex % PUZZLES.length) + PUZZLES.length) % PUZZLES.length;
+let puzzleIndex = (((weekIndex - LAUNCH_WEEK_INDEX) % PUZZLES.length) + PUZZLES.length) % PUZZLES.length;
 let PUZZLE = PUZZLES[puzzleIndex];
 let GRID = PUZZLE.grid;
 let H = GRID.length;
@@ -2615,7 +2616,7 @@ function loadPuzzle(targetWeekIndex, isArchive) {
   archiveMode = !!isArchive;
   weekIndex = targetWeekIndex;
   weekKey = "week-" + weekIndex;
-  puzzleIndex = ((weekIndex % PUZZLES.length) + PUZZLES.length) % PUZZLES.length;
+  puzzleIndex = (((weekIndex - LAUNCH_WEEK_INDEX) % PUZZLES.length) + PUZZLES.length) % PUZZLES.length;
   PUZZLE = PUZZLES[puzzleIndex];
   GRID = PUZZLE.grid;
   H = GRID.length;
